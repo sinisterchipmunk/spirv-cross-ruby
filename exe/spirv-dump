@@ -1,0 +1,9 @@
+#!/bin/env ruby
+require 'spirv-cross'
+require 'pp'
+compiler = SPIRV::Cross::Compiler.new(File.open(ARGV[0], 'rb').read)
+pp({
+  shader_resources: compiler.shader_resources,
+  specialization_constants: compiler.specialization_constants,
+  entry_points: compiler.entry_points
+})

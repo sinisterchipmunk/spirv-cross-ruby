@@ -2,6 +2,15 @@
 
 Provides Ruby bindings for [SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross).
 
+* **NOTE:** In addition to reflection,
+  [SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross) provides the ability
+  to compile a shader to other languages (GLSL, HLSL, C++, etc). However, that
+  functionality has not been exposed to Ruby by this gem as of this writing.
+  If this functionality is desired, [create an issue](https://github.com/sinisterchipmunk/spirv-cross-ruby/issues)
+  so that the need can be tracked. Or better yet, add it yourself and send a pull
+  request. (Unit tests, please.)
+
+
 ## Installation
 
 Add this line to your application's Gemfile:
@@ -18,17 +27,18 @@ Or install it yourself as:
 
     $ gem install spirv-cross
 
-## Usage
+## CLI
 
-* **NOTE:** In addition to reflection,
-  [SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross) provides the ability
-  to compile a shader to other languages (GLSL, HLSL, C++, etc). However, that
-  functionality has not been exposed to Ruby by this gem as of this writing.
-  If this functionality is desired, [create an issue](https://github.com/sinisterchipmunk/spirv-cross-ruby/issues)
-  so that the need can be tracked. Or better yet, add it yourself and send a pull
-  request. (Unit tests, please.)
+In addition to the Ruby API (see below), this gem bundles an executable called
+`spirv-dump`. It takes in a single command line argument (filename) and prints
+all information that can be reflected from it by this gem. This is useful for
+quickly taking a look at a SPIR-V shader, for example for debugging purposes.
 
-    compiler = SPIRV::Cross::Compiler(File.open('path/to/shader', 'rb').read)
+    $ spirv-dump path/to/shader.spv
+
+## API
+
+    compiler = SPIRV::Cross::Compiler(File.open('path/to/shader.spv', 'rb').read)
 
     pp compiler.specialization_constants
     #=> [{:constant_id=>20, :name=>"Const"}]
