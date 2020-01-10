@@ -19,8 +19,7 @@ static const rb_data_type_t compiler_type = {
   .function = {
     .dmark = NULL,
     .dfree = compiler_free,
-    .dsize = compiler_size,
-    .reserved = { 0, 0 }
+    .dsize = compiler_size
   },
   .parent = NULL,
   .data = NULL,
