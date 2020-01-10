@@ -4,7 +4,7 @@ require 'rake/file_utils'
 
 include FileUtils
 
-REVISION = 'ea6bdacd056b77ec1004822482d08b6f31473f25'
+REVISION = 'f912c328'
 
 unless File.directory?(File.expand_path('spirv-cross', __dir__))
   sh 'git', 'clone', 'https://github.com/KhronosGroup/SPIRV-Cross', File.expand_path('spirv-cross', __dir__)
