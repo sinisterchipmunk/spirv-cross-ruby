@@ -1,6 +1,12 @@
 #!/bin/env ruby
 require 'spirv-cross'
 require 'pp'
+
+unless ARGV[0]
+  puts 'Usage: spirv-dump [FILE]'
+  exit 1
+end
+ 
 compiler = SPIRV::Cross::Compiler.new(File.open(ARGV[0], 'rb').read)
 pp({
   shader_resources: compiler.shader_resources,
