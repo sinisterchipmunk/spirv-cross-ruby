@@ -179,11 +179,9 @@ extern "C" {
     return vres;
   }
 
-  VALUE shader_resource_vector_to_ary(spirv_cross::Compiler &compiler, spirv_cross::SmallVector<spirv_cross::Resource> &vec, bool print_ssbo) {
+  VALUE shader_resource_vector_to_ary(spirv_cross::Compiler &compiler, spirv_cross::SmallVector<spirv_cross::Resource> &vec, bool print_ssbo, bool is_buffer) {
     VALUE ret = rb_ary_new();
-    for (size_t i = 0; i < vec.size(); i++) {
-      spirv_cross::Resource &res = vec[i];
-
+    for (auto &res : vec) {
       // just merge extra data into the type hash instead of creating a nested type hash
       VALUE vres = rb_spirv_type(compiler, res.type_id);
 
@@ -193,23 +191,27 @@ extern "C" {
       // // rb_hash_aset(vres, ID2SYM(rb_intern("base_type")), rb_spirv_type(compiler, res.base_type_id));
       // rb_hash_aset(vres, ID2SYM(rb_intern("type")), rb_spirv_type(compiler, res.type_id));
 
-      spirv_cross::SmallVector<spirv_cross::BufferRange> ranges = compiler.get_active_buffer_ranges(res.id);
-      VALUE vranges = rb_ary_new();
-      rb_hash_aset(vres, ID2SYM(rb_intern("active_buffer_ranges")), vranges);
-      for (auto &range : ranges) {
-        VALUE vrange = rb_hash_new();
-        rb_hash_aset(vrange, ID2SYM(rb_intern("index")),  UINT2NUM(range.index));
-        rb_hash_aset(vrange, ID2SYM(rb_intern("offset")), SIZET2NUM(range.offset));
-        rb_hash_aset(vrange, ID2SYM(rb_intern("size")),   SIZET2NUM(range.range));
-        rb_ary_push(vranges, vrange);
+      // This can be used for Buffer (UBO), BufferBlock/StorageBuffer (SSBO) and PushConstant blocks.
+      if (is_buffer) {
+        auto ranges = compiler.get_active_buffer_ranges(res.id);
+        VALUE vranges = rb_ary_new();
+        rb_hash_aset(vres, ID2SYM(rb_intern("active_buffer_ranges")), vranges);
+        for (auto &range : ranges) {
+          VALUE vrange = rb_hash_new();
+          rb_hash_aset(vrange, ID2SYM(rb_intern("index")),  UINT2NUM(range.index));
+          rb_hash_aset(vrange, ID2SYM(rb_intern("offset")), SIZET2NUM(range.offset));
+          rb_hash_aset(vrange, ID2SYM(rb_intern("size")),   SIZET2NUM(range.range));
+          rb_ary_push(vranges, vrange);
+        }
       }
 
       auto &type = compiler.get_type(res.type_id);
 
       /* The following code was basically lifted from spirv-cross/main.cpp */
 
-      if (print_ssbo && compiler.buffer_is_hlsl_counter_buffer(res.id))
+      if (print_ssbo && compiler.buffer_is_hlsl_counter_buffer(res.id)) {
         continue;
+      }
 
       // If we don't have a name, use the fallback for the type instead of the variable
       // for SSBOs and UBOs since those are the only meaningful names to use externally.
@@ -232,18 +234,20 @@ extern "C" {
       }
 
       spirv_cross::Bitset mask;
-      if (print_ssbo)
+      if (print_ssbo) {
         mask = compiler.get_buffer_block_flags(res.id);
-      else
+      } else {
         mask = compiler.get_decoration_bitset(res.id);
+      }
 
       VALUE ary = rb_ary_new();
       rb_hash_aset(vres, ID2SYM(rb_intern("array_sizes")), ary);
       for (size_t j = 0; j < type.array.size(); j++) {
-        if (type.array_size_literal[j])
+        if (type.array_size_literal[j]) {
           rb_ary_push(ary, UINT2NUM(type.array[j]));
-        else
+        } else {
           rb_ary_push(ary, ID2SYM(rb_intern("expression")));
+        }
       }
 
       rb_hash_aset(vres, ID2SYM(rb_intern("name")),
@@ -266,13 +270,15 @@ extern "C" {
       if (is_sized_block)
       {
         rb_hash_aset(vres, ID2SYM(rb_intern("block_size")), UINT2NUM(block_size));
-        if (runtime_array_stride)
+        if (runtime_array_stride) {
           rb_hash_aset(vres, ID2SYM(rb_intern("unsized_array_stride")), UINT2NUM(runtime_array_stride));
+        }
       }
 
       uint32_t counter_id = 0;
-      if (print_ssbo && compiler.buffer_get_hlsl_counter_buffer(res.id, counter_id))
+      if (print_ssbo && compiler.buffer_get_hlsl_counter_buffer(res.id, counter_id)) {
         rb_hash_aset(vres, ID2SYM(rb_intern("hlsl_counter_buffer_id")), UINT2NUM(counter_id));
+      }
 
       rb_ary_push(ret, vres);
     }
@@ -281,19 +287,19 @@ extern "C" {
 
   inline VALUE shader_resources_to_hash(spirv_cross::Compiler *comp, spirv_cross::ShaderResources &resources) {
     VALUE vsr = rb_hash_new();
-    #define HASH_PUSH_RESOURCE_ARY(name, ssbo) \
-      rb_hash_aset(vsr, ID2SYM(rb_intern(#name)), shader_resource_vector_to_ary(*comp, resources.name, ssbo));
-    HASH_PUSH_RESOURCE_ARY(uniform_buffers,       false);
-    HASH_PUSH_RESOURCE_ARY(storage_buffers,       true);
-    HASH_PUSH_RESOURCE_ARY(stage_inputs,          false);
-    HASH_PUSH_RESOURCE_ARY(stage_outputs,         false);
-    HASH_PUSH_RESOURCE_ARY(subpass_inputs,        false);
-    HASH_PUSH_RESOURCE_ARY(storage_images,        false);
-    HASH_PUSH_RESOURCE_ARY(sampled_images,        false);
-    HASH_PUSH_RESOURCE_ARY(atomic_counters,       false);
-    HASH_PUSH_RESOURCE_ARY(push_constant_buffers, false);
-    HASH_PUSH_RESOURCE_ARY(separate_images,       false);
-    HASH_PUSH_RESOURCE_ARY(separate_samplers,     false);
+    #define HASH_PUSH_RESOURCE_ARY(name, ssbo, is_buffer) \
+      rb_hash_aset(vsr, ID2SYM(rb_intern(#name)), shader_resource_vector_to_ary(*comp, resources.name, ssbo, is_buffer));
+    HASH_PUSH_RESOURCE_ARY(uniform_buffers,       false, true);
+    HASH_PUSH_RESOURCE_ARY(storage_buffers,       true,  true);
+    HASH_PUSH_RESOURCE_ARY(stage_inputs,          false, false);
+    HASH_PUSH_RESOURCE_ARY(stage_outputs,         false, false);
+    HASH_PUSH_RESOURCE_ARY(subpass_inputs,        false, false);
+    HASH_PUSH_RESOURCE_ARY(storage_images,        false, false);
+    HASH_PUSH_RESOURCE_ARY(sampled_images,        false, false);
+    HASH_PUSH_RESOURCE_ARY(atomic_counters,       false, false);
+    HASH_PUSH_RESOURCE_ARY(push_constant_buffers, false, true);
+    HASH_PUSH_RESOURCE_ARY(separate_images,       false, false);
+    HASH_PUSH_RESOURCE_ARY(separate_samplers,     false, false);
     return vsr;
   }
 
