@@ -367,7 +367,7 @@ extern "C" {
 
     try {
       spirv_cross::Compiler *compiler = new spirv_cross::Compiler(std::move(spirv));
-      rb_ivar_set(self, rb_intern("@handle"), TypedData_Wrap_Struct(rb_cData, &compiler_type, compiler));
+      rb_ivar_set(self, rb_intern("@handle"), TypedData_Wrap_Struct(rb_cObject, &compiler_type, compiler));
     } catch(const std::exception &ex) {
       rb_raise(rb_eSPIRVError, "%s", ex.what());
     }
